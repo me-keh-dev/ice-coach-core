@@ -10,9 +10,9 @@ Technical documentation for the Ice Coach figure skating analysis engine. This r
 
 Ice Coach does not analyze video frames directly in 2D. Instead:
 
-1. **2D → 3D**: Single-camera video is reconstructed into 3D Motion Capture data (world coordinates)
-2. **3D Analysis**: Jump trajectory, under-rotation, and biomechanics are computed in 3D space — achieving precision that 2D analysis alone cannot provide
-3. **3D → 2D**: Results are projected back onto the original 2D video as overlay visualizations
+1. **2D → 3D**: MediaPipe PoseLandmarker extracts both 2D skeleton and 3D World Landmarks (WLM) from each frame. The WLM data is then converted into Motion Capture data in world coordinates.
+2. **3D Analysis**: Jump trajectory, under-rotation, and biomechanics are computed from the 3D MoCap data — achieving precision that 2D analysis alone cannot provide.
+3. **3D → 2D**: Results are projected back onto the original 2D video as overlay visualizations.
 
 This 2D→3D→2D pipeline is the key to extracting accurate measurements from ordinary smartphone video.
 
