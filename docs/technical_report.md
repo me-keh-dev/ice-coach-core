@@ -8,7 +8,11 @@
 
 ## Abstract
 
-This document describes the technical approach used by Ice Coach for reconstructing 3D figure skating trajectories from single-camera video. The method requires no camera calibration and estimates on-ice positions, jump trajectories, and skating paths from smartphone-captured video.
+Quantitative analysis of figure skating jumps has traditionally required expensive multi-camera motion capture systems or wearable sensors. This document presents the technical approach used by Ice Coach, a system that performs 3D trajectory reconstruction and automated under-rotation detection from a single smartphone camera — requiring no calibration, no rink reference points, and no wearable sensors.
+
+The key insight is a **2D → 3D → Analysis → 2D pipeline**: 2D video frames are first lifted into 3D Motion Capture data via MediaPipe's World Landmark Model, jump metrics and rotation deficit are computed in 3D world coordinates, and results are projected back onto the original video as overlays. This approach achieves measurement precision that direct 2D image analysis cannot provide.
+
+The under-rotation detection method uses MoCap-derived shoulder orientation with settled-angle averaging and checkout offset compensation.
 
 ---
 
@@ -20,34 +24,68 @@ Ice Coach achieves 3D trajectory reconstruction under the following constraints:
 - **No rink reference points**: Does not use known coordinate points on the rink
 - **Client-side processing**: Runs fully in-browser, no server required
 
-## 2. System Architecture
+## 2. Core Pipeline: 2D → 3D → Analysis → 2D
+
+Ice Coach does not analyze video frames directly in 2D. The processing pipeline is:
+
+1. **2D → 3D Reconstruction**: MediaPipe PoseLandmarker outputs both 2D screen coordinates and 3D World Landmarks (WLM) for each frame. The WLM data (root-relative 3D joint positions in camera space) is transformed into world coordinates by tracking cumulative hip displacement across frames, producing Motion Capture (MoCap) data with absolute positions.
+
+2. **3D Analysis**: All quantitative measurements — jump trajectory, height, under-rotation deficit, biomechanics — are computed from the 3D MoCap data in world coordinates.
+
+3. **3D → 2D Projection**: Analysis results are projected back onto the original 2D video as canvas overlays, synchronized frame-by-frame.
 
 ```
 Input: Single-camera video + skater height
        |
        v
-[A] Skeletal Pose Estimation
-       |  Body keypoints per frame, GPU-accelerated
+[A] Skeletal Pose Estimation (MediaPipe PoseLandmarker)
+       |  2D keypoints + 3D World Landmarks (WLM), GPU-accelerated
        |
-       +--> [B] Jump Detection (Center of gravity analysis)
+       +--> [B] MoCap Reconstruction (WLM → world coordinates)
+       |         -> 3D joint positions per frame
        |
-       +--> [C] Depth Estimation (Body size in pixels)
+       +--> [C] Jump Detection (Center of gravity analysis)
        |
-       +--> [D] 3D Position Recovery (Pinhole camera model)
+       +--> [D] Depth Estimation (Body size in pixels)
        |
-       +--> [E] Trajectory Smoothing + Rendering
+       +--> [E] 3D Position Recovery (Pinhole camera model)
+       |
+       +--> [F] Under-Rotation Detection (3D shoulder orientation)
+       |
+       +--> [G] Trajectory Rendering + Overlay
        |
        v
-Output: 3D trajectory + skeleton overlay + 3D rink view
+Output: 3D trajectory + skeleton overlay + under-rotation assessment
 ```
+
+## 2.1 MoCap Reconstruction
+
+MediaPipe's World Landmark Model outputs root-relative 3D coordinates for each joint (X: lateral, Y: vertical, Z: depth in camera space). These are converted to world coordinates by:
+
+1. **Root tracking**: The pelvis midpoint (average of LeftHip and RightHip) in 2D screen coordinates is tracked frame-to-frame. Screen-space displacement is scaled to world-space displacement.
+2. **Joint positioning**: Each joint's WLM root-relative offset is scaled by the skater's known height and added to the world root position.
+3. **Ground calibration**: The vertical axis is adjusted so that the lowest foot position corresponds to the ice surface (Y=0).
+
+This produces a per-frame MoCap dataset with world-coordinate joint positions, suitable for biomechanical analysis.
 
 ## 3. Skeletal Pose Estimation
 
-A pose estimation model detects body keypoints from each video frame. When multiple people are visible, IoU-based tracking follows the target skater across frames.
+MediaPipe PoseLandmarker (heavy model, float16) detects 33 body keypoints per frame using GPU-accelerated (WebGL) inference. The model simultaneously outputs:
+
+- **2D landmarks**: Normalized screen coordinates (x, y) for each joint
+- **3D World Landmarks (WLM)**: Root-relative 3D coordinates (x, y, z) in camera space
+
+Video is processed at 60fps regardless of device. When multiple people are visible, IoU-based bounding box tracking follows the target skater across frames, preventing identity switches.
 
 ## 4. Jump Detection
 
-Jumps are detected from the vertical position of the center of gravity. A smoothed vertical signal is computed, and local peaks with sufficient prominence are identified as jump moments. Takeoff and landing frames are determined from the surrounding signal.
+Jumps are detected from the vertical position of the center of gravity (CoG), defined as the midpoint between the shoulder center and hip center.
+
+1. **Vertical signal extraction**: The CoG Y-coordinate is extracted for each frame and smoothed to reduce noise.
+2. **Peak detection**: Local minima in the vertical signal (where the body reaches maximum height) are identified with sufficient prominence to distinguish jumps from skating movements.
+3. **Takeoff detection**: Scanning backward from the peak, the takeoff frame is identified where the CoG begins its upward trajectory.
+4. **Landing detection**: Scanning forward from the peak, the landing frame is identified where the CoG returns to its pre-takeoff vertical level.
+5. **Airtime measurement**: The duration between takeoff and landing frames provides the airtime T, from which jump height is derived.
 
 ## 5. Ice Surface Projection
 
@@ -206,9 +244,32 @@ deficit = max(0, raw_deficit - checkout_offset)
 
 ---
 
+## 14. Related Work
+
+### Figure Skating Motion Analysis
+
+Prior work on figure skating analysis has primarily relied on professional motion capture systems. Lab-based studies using Vicon or OptiTrack systems have measured jump biomechanics with high precision but require controlled environments and reflective markers, making them impractical for everyday coaching.
+
+### Monocular 3D Pose Estimation
+
+Recent advances in monocular 3D pose estimation (MediaPipe, OpenPose, MMPose) have enabled skeleton detection from single cameras. However, most applications focus on pose recognition or action classification rather than quantitative biomechanical measurement.
+
+### Under-Rotation Assessment
+
+ISU technical panels assess under-rotation through slow-motion video replay using visual judgment. No standardized computational method has been published. Ice Coach provides an automated approach for quantifying landing rotation deficit from single-camera video.
+
+### Positioning of This Work
+
+Ice Coach bridges the gap between lab-grade motion capture and practical coaching tools by:
+- Using consumer hardware (smartphone) instead of professional equipment
+- Processing entirely client-side (browser) with no server dependency
+- Lifting 2D observations into 3D MoCap data for analysis, then projecting results back to 2D
+
+---
+
 ## References
 
-All methods described in this document are based on well-known physics principles (pinhole camera model, free-fall kinematics) and standard signal processing techniques (median filter, Gaussian smoothing, spline interpolation).
+The methods described in this document are based on established physics principles (pinhole camera model, free-fall kinematics, projectile motion), standard signal processing techniques (median filter, Gaussian smoothing, spline interpolation), and state-of-the-art pose estimation models (MediaPipe PoseLandmarker).
 
 ---
 
