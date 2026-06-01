@@ -106,7 +106,7 @@ The checkout offset accounts for normal post-landing rotation on the blade's roc
 
 ### Post-Processing: Physics Constraints
 
-- **Airborne linear motion**: No external forces act horizontally during a jump, so XZ coordinates are linearly interpolated between takeoff and landing
+- **Airborne smoothing**: Horizontal coordinates are smoothly interpolated during the jump phase
 - **Gaussian smoothing**: Noise reduction for on-ice XZ coordinates
 - **Curvature constraint**: Minimum turning radius based on skating physics
 - **Velocity clamping**: Maximum speed and acceleration limited to physically plausible values
