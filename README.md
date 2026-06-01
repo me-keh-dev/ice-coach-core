@@ -6,6 +6,16 @@ AI-powered figure skating jump analysis — technical documentation and algorith
 
 Technical documentation for the Ice Coach figure skating analysis engine. This repository contains algorithm descriptions and design rationale — **source code is not yet included**.
 
+### Core Pipeline: 2D → 3D → Analysis → 2D
+
+Ice Coach does not analyze video frames directly in 2D. Instead:
+
+1. **2D → 3D**: Single-camera video is reconstructed into 3D Motion Capture data (world coordinates)
+2. **3D Analysis**: Jump trajectory, under-rotation, and biomechanics are computed in 3D space — achieving precision that 2D analysis alone cannot provide
+3. **3D → 2D**: Results are projected back onto the original 2D video as overlay visualizations
+
+This 2D→3D→2D pipeline is the key to extracting accurate measurements from ordinary smartphone video.
+
 Built from the ground up for real-world use on the ice rink, this engine combines skeletal pose estimation, physics-based jump analysis, and anthropometric depth estimation to produce 3D motion data from ordinary video.
 
 ## Key Features
