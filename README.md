@@ -1,10 +1,10 @@
 # Ice Coach Core
 
-Single-camera 3D trajectory reconstruction engine for figure skating analysis.
+AI-powered figure skating jump analysis — technical documentation and algorithm design.
 
 ## Overview
 
-Ice Coach Core is an open-source engine that reconstructs 3D skating trajectories from a single smartphone camera — **no calibration, no reference points, no sensors required**.
+Technical documentation for the Ice Coach figure skating analysis engine. This repository contains algorithm descriptions and design rationale — **source code is not yet included**.
 
 Built from the ground up for real-world use on the ice rink, this engine combines skeletal pose estimation, physics-based jump analysis, and anthropometric depth estimation to produce 3D motion data from ordinary video.
 
@@ -14,7 +14,7 @@ Built from the ground up for real-world use on the ice rink, this engine combine
 - **No rink reference points**: Works without any known coordinates on the ice surface
 - **Single smartphone camera**: No multi-camera setup or wearable sensors
 - **Runs in browser**: Fully client-side, no server required
-- **Physics-grounded**: Jump height derived from airtime using kinematic equations — not image regression
+- **Physics-grounded**: Jump height derived from airtime using kinematic equations
 
 ## How It Works
 
@@ -58,7 +58,7 @@ H_max = g * T^2 / 8
 h(t) = (g/2) * t * (T - t)
 ```
 
-No image-based inverse projection is used. No optimization is performed.
+Height is uniquely determined from airtime alone.
 
 ### Depth Estimation: Anthropometric Body Size Ratio
 
@@ -78,22 +78,16 @@ A novel method for quantifying jump landing under-rotation using 3D body orienta
 facing_angle = atan2(dx_shoulder, -dz_shoulder)
 ```
 
-**Settled Angle**: The reference body orientation after the skater stabilizes, computed as the average facing angle over a 0.1–0.35s window post-landing:
-
-```
-settled = mean(facing_angle[t_land + 0.1 ... t_land + 0.35])
-```
-
-Averaging over ~15 frames absorbs GPU inference non-determinism (which can cause 20–40° variance in single-frame measurements).
+**Settled Angle**: The reference body orientation after the skater stabilizes, computed as the average facing angle over a short time window post-landing. Averaging over multiple frames absorbs GPU inference non-determinism.
 
 **Deficit Calculation**:
 
 ```
 raw_deficit = |angle_diff(facing_at_landing, settled_angle)|
-deficit = max(0, raw_deficit - 45°)
+deficit = max(0, raw_deficit - checkout_offset)
 ```
 
-The 45° offset accounts for normal post-landing rotation on the blade's rocker curve (checkout), which ISU judges do not count as under-rotation.
+The checkout offset accounts for normal post-landing rotation on the blade's rocker curve, which ISU judges do not count as under-rotation.
 
 **ISU Classification**:
 
@@ -114,8 +108,8 @@ The 45° offset accounts for normal post-landing rotation on the blade's rocker 
 
 - **Airborne linear motion**: No external forces act horizontally during a jump, so XZ coordinates are linearly interpolated between takeoff and landing
 - **Gaussian smoothing**: Noise reduction for on-ice XZ coordinates
-- **Curvature constraint**: Minimum turning radius 0.75m
-- **Velocity clamping**: Max speed 8.4 m/s, max acceleration 5.0 m/s^2
+- **Curvature constraint**: Minimum turning radius based on skating physics
+- **Velocity clamping**: Maximum speed and acceleration limited to physically plausible values
 
 ## License
 

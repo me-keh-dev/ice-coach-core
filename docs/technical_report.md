@@ -153,13 +153,13 @@ This captures body rotation in 3D space, avoiding the ±180° flip artifacts tha
 
 **Step 2: Settled Angle (Reference Orientation)**
 
-The "settled" body orientation — the direction the skater faces after completing the landing — is computed as the **average** body facing angle over a time window of **landing + 0.1s to + 0.35s**:
+The "settled" body orientation — the direction the skater faces after completing the landing — is computed as the **average** body facing angle over a short time window post-landing:
 
 ```
-settled_angle = mean(facing_angle[t_land + 0.1 ... t_land + 0.35])
+settled_angle = mean(facing_angle[t_land + t_start ... t_land + t_end])
 ```
 
-Averaging over multiple frames (typically 15 frames at 60fps) absorbs the non-determinism inherent in GPU-based pose estimation, which can cause single-frame measurements to vary by 20-40° between runs.
+Averaging over multiple frames absorbs the non-determinism inherent in GPU-based pose estimation.
 
 Angles are unwrapped before averaging to handle the ±180° boundary correctly.
 
@@ -171,10 +171,10 @@ The raw deficit is the angular difference between the body facing at landing and
 raw_deficit = |angle_diff(facing_at_landing, settled_angle)|
 ```
 
-A **checkout offset** of 35° is subtracted to account for normal post-landing rotation on the blade's rocker curve. This rotation is a natural part of the landing check-out and is not considered under-rotation by ISU judges:
+A **checkout offset** is subtracted to account for normal post-landing rotation on the blade's rocker curve. This rotation is a natural part of the landing check-out and is not considered under-rotation by ISU judges:
 
 ```
-deficit = max(0, raw_deficit - 35°)
+deficit = max(0, raw_deficit - checkout_offset)
 ```
 
 **Step 4: ISU Classification**
@@ -193,16 +193,16 @@ deficit = max(0, raw_deficit - 35°)
 | 2D heel-toe landmarks too noisy (few pixels) | Use 3D MoCap shoulder orientation instead |
 | 2D shoulder angle flips at ±180° during rotation | Use MoCap world coordinates (XZ plane) |
 | Camera perspective drift in MoCap hip line | Use shoulder line (more stable during skating) |
-| GPU inference non-determinism (20-40° variance per run) | Average settled angle over 0.1-0.35s window |
-| Normal post-landing rotation counted as deficit | Subtract 35° checkout offset |
+| GPU inference non-determinism | Average settled angle over a time window |
+| Normal post-landing rotation counted as deficit | Subtract checkout offset |
 | PC/mobile precision mismatch | Unified heavy model + 60fps on all devices |
 
 ### 13.4 Limitations
 
 - Relies on accurate MoCap shoulder positions; body facing toward/away from camera reduces precision
-- The 35° checkout offset is empirically determined and may vary across jump types and skaters
+- The checkout offset is empirically determined and may vary across jump types and skaters
 - ISU judges assess blade orientation at ice contact; this method measures body (shoulder) orientation as a proxy
-- Results may vary ±5° between analysis runs due to video decode and GPU inference non-determinism
+- Results may vary slightly between analysis runs due to video decode and GPU inference non-determinism
 
 ---
 
