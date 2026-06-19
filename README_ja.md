@@ -171,7 +171,6 @@ x(t) = center_x(t) + radius × cos(theta(t))
 | [ジャンプ解析 技術レポート (日本語)](docs/technical_report_ja.md) | 日本語版 |
 | [スピン解析 技術レポート](docs/spin_analysis_technical_report.md) | スピン軌跡復元の全技術詳細 |
 | [スピン解析 技術レポート (日本語)](docs/spin_analysis_technical_report_ja.md) | 日本語版 |
-| [スピン軌跡 開発ストーリー](docs/story_spin_trajectory.md) | スピン軌跡機能の開発経緯 |
 
 ## ライセンス
 

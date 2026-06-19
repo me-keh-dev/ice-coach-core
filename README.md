@@ -214,7 +214,6 @@ Multi-frame voting at spin start, locked for the entire spin duration. Single-fr
 | [Jump Analysis Technical Report (Japanese)](docs/technical_report_ja.md) | 日本語版 |
 | [Spin Analysis Technical Report](docs/spin_analysis_technical_report.md) | Full technical details of the spin trajectory reconstruction |
 | [Spin Analysis Technical Report (Japanese)](docs/spin_analysis_technical_report_ja.md) | 日本語版 |
-| [Spin Trajectory Development Story](docs/story_spin_trajectory.md) | Development narrative of the spin trajectory feature |
 
 ## License
 
